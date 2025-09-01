@@ -1,0 +1,109 @@
+#Uncomment the following line if you are running in the cluster managed by the ETE team
+serviceAccountName: "gdr"
+
+namespace: platform
+jobName: davis-bamba-Long-CoT-SFT
+priority: high-priority
+
+# containerImage: ghcr.io/foundation-model-stack/base:pytorch-compile-latest-nightly-20241221
+containerImage: us.icr.io/cil15-shared-registry/platform/goon-torch-dev:latest
+restartPolicy: Never
+
+numPods: 1
+numCpusPerPod: 72
+numGpusPerPod: 8
+totalMemoryPerPod: 1000Gi
+
+numRoceGdr: 0
+topologyFileConfigMap: topo-gdr-2vf-canary
+ncclGdrEnvConfigMap: nccl-netwk-env-vars
+
+environmentVariables:
+  - name: NCCL_TOPO_FILE
+    value: /var/run/nvidia-topologyd/virtualTopology.xml
+  - name: NCCL_IB_HCA
+    value: mlx5_0,mlx5_3
+  - name: NCCL_IB_QPS_PER_CONNECTION
+    value: "8"
+  - name: NCCL_IB_SPLIT_DATA_ON_QPS
+    value: "0"
+  - name: NCCL_IB_PCI_RELAXED_ORDERING
+    value: "1"
+  - name: NCCL_IB_GID_INDEX
+    value: "3"
+  - name: NCCL_SOCKET_IFNAME
+    value: eth0 #net1-0,net1-1
+  - name: CUDA_VISIBLE_DEVICES
+    value: 0,1,2,3,4,5,6,7
+  - name: NCCL_ALGO
+    value: Ring
+  - name: NCCL_IGNORE_CPU_AFFINITY
+    value: "1"
+  - name: NCCL_DEBUG_SUBSYS
+    value: INIT,GRAPH,ENV,TUNING
+  - name: NCCL_IB_DISABLE
+    value: "0"
+  - name: NCCL_SOCKET_NTHREADS
+    value: "2"
+  - name: NCCL_CROSS_NIC
+    value: "0"
+  - name: NCCL_DEBUG
+    value: WARN
+  - name: OMP_NUM_THREADS
+    value: "16"
+  - name: NCCL_BUFFSIZE
+    value: "8388608"
+
+setupCommands:
+
+  - pip install -r requirements.txt
+  - export HF_HOME="/gpfs/hshen/cot_sft"
+
+
+mainProgram: >
+    train/sft.py \
+    --block_size=32768 \
+    --per_device_train_batch_size=1 \
+    --per_device_eval_batch_size=1 \
+    --gradient_accumulation_steps=1} \
+    --num_train_epochs=5 \
+    --train_file_path="simplescaling/s1K_tokenized" \
+    --model_name="/gpfs/goon/models/bamba-long-context-sft/pretok-2tulu-1long-ctx-from-4k-sft-e3b0-sum-64k-ctx-1e-6lr-0.1flr-0.03warm-0.0zl-8cp-4dp-10kstep-2bs-no-clip-npf-53258bfmamba-0b/hf/step_8000" \
+    --warmup_ratio=0.05 \
+    --fsdp="full_shard auto_wrap" \
+    --bf16=True \
+    --eval_strategy="no" \
+    --logging_steps=1 \
+    --save_strategy="no" \
+    --lr_scheduler_type="cosine" \
+    --learning_rate=1e-5 \
+    --weight_decay=1e-4 \
+    --adam_beta1=0.9 \
+    --adam_beta2=0.95 \
+    --output_dir="/gpfs/hshen/cot_sft/ckpts/s1-Bamba" \
+    --push_to_hub=False \
+    --save_only_model=True \
+    --gradient_checkpointing=True \
+
+
+hostIgnoreList:
+
+multiNicNetworkName: multi-nic-network
+
+imagePullSecrets:
+  - name: all-icr-io
+
+volumes:
+  - name: datasets
+    claimName: platform-dataset-1
+    mountPath: /datasets
+  - name: checkpoints
+    claimName: platform-checkpoints
+    mountPath: /gpfs
+
+warmupGracePeriodDuration: 20m
+deletionOnFailureGracePeriodDuration: 10m
+Collapse
+
+
+
