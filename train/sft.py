@@ -108,6 +108,8 @@ def train():
         # if tokenizer.pad_token is None:
         print("PAD token set to <PAD>, missing in tokenizer")
         special_tokens_dict["pad_token"] = "<PAD>"
+        instruction_template = "<|im_start|>user"
+        response_template = "<|im_start|>assistant\n"
 
         # tokenizer_and_embedding_resize(
         #     special_tokens_dict=special_tokens_dict,
