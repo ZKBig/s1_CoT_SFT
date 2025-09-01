@@ -56,6 +56,8 @@ environmentVariables:
 
 setupCommands:
 
+  - git clone https://github.com/ZKBig/s1_CoT_SFT.git
+  - cd s1_CoT_SFT
   - pip install -r requirements.txt
   - export HF_HOME="/gpfs/hshen/cot_sft"
 
